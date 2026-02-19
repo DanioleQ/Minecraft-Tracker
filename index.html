@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Minecraft</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #1e1e1e;
+        color: white;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+      }
+
+      /* === HEADER ROW (jak lista bloków) === */
+      .header-row {
+        background: #2a2a2a;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: grid;
+        grid-template-columns: 1fr 120px 140px 160px 90px;
+        gap: 10px;
+        font-weight: bold;
+        opacity: 0.9;
+      }
+
+      .add-form {
+        background: #2a2a2a;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: 1fr 120px 140px;
+        gap: 10px;
+      }
+
+      input,
+      button {
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      input {
+        background: #1e1e1e;
+        color: white;
+      }
+
+      button {
+        background: #4caf50;
+        color: white;
+        cursor: pointer;
+      }
+
+      .delete-btn {
+        background: #e53935;
+      }
+
+      .block {
+        background: #2a2a2a;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: grid;
+        grid-template-columns: 1fr 120px 140px 160px 90px;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .progress-container {
+        margin-top: 30px;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 30px;
+        background: #333;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+      }
+      .progress-text {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        pointer-events: none;
+        text-align: center;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #4caf50, #8bc34a);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Chongqing Project</h1>
+
+      <!-- INPUTY w tym samym stylu -->
+      <div class="add-form">
+        <input type="text" id="blockName" placeholder="Nazwa bloku" />
+        <input type="number" id="blockRequired" placeholder="Ilość" />
+        <button onclick="addBlock()">Dodaj</button>
+      </div>
+      <!-- HEADER jak lista -->
+      <div class="header-row">
+        <div>Nazwa bloku</div>
+        <div>Do zebrania</div>
+        <div>Zebrane</div>
+      </div>
+      <div id="blocksList"></div>
+
+      <div class="progress-container">
+        <h3 style="text-align: center">Postęp wszystkich bloków</h3>
+        <div class="progress-bar">
+          <div class="progress-text" id="progressText">0%</div>
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let blocks = JSON.parse(localStorage.getItem("minecraftBlocks")) || [];
+
+      function saveData() {
+        localStorage.setItem("minecraftBlocks", JSON.stringify(blocks));
+        updateProgress();
+      }
+
+      function addBlock() {
+        const name = document.getElementById("blockName").value.trim();
+        const required = parseInt(
+          document.getElementById("blockRequired").value,
+        );
+
+        if (!name || !required) return;
+
+        blocks.push({ name, required, collected: 0 });
+
+        document.getElementById("blockName").value = "";
+        document.getElementById("blockRequired").value = "";
+
+        renderBlocks();
+        saveData();
+      }
+
+      function addCollected(index) {
+        const input = document.getElementById(`add-${index}`);
+        let value = parseInt(input.value);
+
+        if (isNaN(value) || value <= 0) return;
+
+        blocks[index].collected += value;
+
+        if (blocks[index].collected > blocks[index].required) {
+          blocks[index].collected = blocks[index].required;
+        }
+
+        input.value = "";
+
+        renderBlocks();
+        saveData();
+      }
+
+      function deleteBlock(index) {
+        blocks.splice(index, 1);
+        renderBlocks();
+        saveData();
+      }
+
+      function renderBlocks() {
+        const list = document.getElementById("blocksList");
+        list.innerHTML = "";
+
+        blocks.forEach((block, index) => {
+          const div = document.createElement("div");
+          div.className = "block";
+
+          div.innerHTML = `
+          <div><strong>${block.name}</strong></div>
+
+          <div>${block.required}</div>
+
+          <div>${block.collected}</div>
+
+          <input id="add-${index}" type="number" placeholder="Dodaj"
+            onkeydown="if(event.key==='Enter') addCollected(${index})">
+
+          <button class="delete-btn" onclick="deleteBlock(${index})">Usuń</button>
+        `;
+
+          list.appendChild(div);
+        });
+
+        updateProgress();
+      }
+
+      function updateProgress() {
+        let totalRequired = 0;
+        let totalCollected = 0;
+
+        blocks.forEach((b) => {
+          totalRequired += b.required;
+          totalCollected += b.collected;
+        });
+
+        const percent = totalRequired
+          ? Math.round((totalCollected / totalRequired) * 100)
+          : 0;
+
+        document.getElementById("progressFill").style.width = percent + "%";
+        document.getElementById("progressText").textContent =
+          percent + "% (" + totalCollected + " / " + totalRequired + ")";
+      }
+
+      renderBlocks();
+    </script>
+  </body>
+</html>
