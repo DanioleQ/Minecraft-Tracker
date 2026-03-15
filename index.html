@@ -112,11 +112,20 @@
     <div class="container">
       <h1>Chongqing Project</h1>
 
-      <!-- INPUTY w tym samym stylu -->
-      <div class="add-form">
-        <input type="text" id="blockName" placeholder="Nazwa bloku" />
-        <input type="number" id="blockRequired" placeholder="Ilość" />
-        <button onclick="addBlock()">Dodaj</button>
+      <div
+        id="dropZone"
+        style="
+          margin-bottom: 20px;
+          padding: 25px;
+          border: 2px dashed #555;
+          border-radius: 10px;
+          text-align: center;
+          color: #aaa;
+          cursor: pointer;
+        "
+      >
+        Przeciągnij plik z tabelą tutaj lub kliknij aby wybrać
+        <input type="file" id="fileInput" hidden />
       </div>
       <!-- HEADER jak lista -->
       <div class="header-row">
@@ -230,6 +239,111 @@
       }
 
       renderBlocks();
+      blocks = [];
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("fileInput");
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleFile(e.dataTransfer.files[0]);
+      });
+      dropZone.addEventListener("click", () => fileInput.click());
+
+      fileInput.addEventListener("change", (e) => {
+        handleFile(e.target.files[0]);
+      });
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#4caf50";
+        dropZone.style.color = "#4caf50";
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.style.borderColor = "#555";
+        dropZone.style.color = "#aaa";
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#555";
+        dropZone.style.color = "#aaa";
+
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+      });
+
+      function handleFile(file) {
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+          const text = event.target.result;
+          const lines = text.split("\n");
+
+          // usuwa poprzednie dane
+          blocks = [];
+
+          lines.forEach((line) => {
+            if (!line.includes("|")) return;
+
+            const cols = line.split("|").map((c) => c.trim());
+
+            const item = cols[1];
+            const total = parseInt(cols[2]);
+
+            // pomija nagłówek tabeli
+            if (item === "Item") return;
+
+            if (item && !isNaN(total)) {
+              blocks.push({
+                name: item,
+                required: total,
+                collected: 0,
+              });
+            }
+          });
+
+          renderBlocks();
+          saveData();
+        };
+
+        reader.readAsText(file);
+      }
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+
+          reader.onload = function (event) {
+            const text = event.target.result;
+            const lines = text.split("\n");
+
+            lines.forEach((line) => {
+              if (!line.includes("|")) return;
+
+              const cols = line.split("|").map((c) => c.trim());
+
+              const item = cols[1];
+              const total = parseInt(cols[2]);
+
+              if (item && !isNaN(total)) {
+                blocks.push({
+                  name: item,
+                  required: total,
+                  collected: 0,
+                });
+              }
+            });
+
+            renderBlocks();
+            saveData();
+          };
+
+          reader.readAsText(file);
+        });
     </script>
   </body>
 </html>
