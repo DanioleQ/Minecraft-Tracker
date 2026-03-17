@@ -3,110 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Minecraft</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background: #1e1e1e;
-        color: white;
-        margin: 0;
-        padding: 20px;
-      }
-
-      h1 {
-        text-align: center;
-      }
-
-      .container {
-        max-width: 900px;
-        margin: auto;
-      }
-
-      /* === HEADER ROW (jak lista bloków) === */
-      .header-row {
-        background: #2a2a2a;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        display: grid;
-        grid-template-columns: 1fr 120px 140px 160px 90px;
-        gap: 10px;
-        font-weight: bold;
-        opacity: 0.9;
-      }
-
-      .add-form {
-        background: #2a2a2a;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        display: grid;
-        grid-template-columns: 1fr 120px 140px;
-        gap: 10px;
-      }
-
-      input,
-      button {
-        padding: 10px;
-        border: none;
-        border-radius: 8px;
-        font-size: 14px;
-      }
-
-      input {
-        background: #1e1e1e;
-        color: white;
-      }
-
-      button {
-        background: #4caf50;
-        color: white;
-        cursor: pointer;
-      }
-
-      .delete-btn {
-        background: #e53935;
-      }
-
-      .block {
-        background: #2a2a2a;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        display: grid;
-        grid-template-columns: 1fr 120px 140px 160px 90px;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .progress-container {
-        margin-top: 30px;
-      }
-
-      .progress-bar {
-        width: 100%;
-        height: 30px;
-        background: #333;
-        border-radius: 15px;
-        overflow: hidden;
-        position: relative;
-      }
-      .progress-text {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        pointer-events: none;
-        text-align: center;
-      }
-      .progress-fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, #4caf50, #8bc34a);
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="container">
@@ -127,6 +24,12 @@
         Przeciągnij plik z tabelą tutaj lub kliknij aby wybrać
         <input type="file" id="fileInput" hidden />
       </div>
+      <button
+        onclick="clearAllBlocks()"
+        style="background: #e53935; margin-bottom: 15px"
+      >
+        Usuń wszystkie bloki
+      </button>
       <!-- HEADER jak lista -->
       <div class="header-row">
         <div>Nazwa bloku</div>
@@ -145,54 +48,93 @@
     </div>
 
     <script>
+      // 📥 Wczytaj dane z localStorage przy starcie
       let blocks = JSON.parse(localStorage.getItem("minecraftBlocks")) || [];
 
-      function saveData() {
-        localStorage.setItem("minecraftBlocks", JSON.stringify(blocks));
-        updateProgress();
+      // 🎨 Narysuj UI na podstawie danych
+      renderBlocks();
+      // 📁 Pobierz input pliku
+      const fileInput = document.getElementById("fileInput");
+      const dropZone = document.getElementById("dropZone");
+
+      // 🖱 Kliknięcie w dropZone → otwiera wybór pliku
+      dropZone.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      // 📂 Wybór pliku przez okno
+      fileInput.addEventListener("change", function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        handleFile(file); // 👉 przekazanie do głównej funkcji
+      });
+
+      // 📦 Przeciąganie pliku nad strefą
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#4caf50";
+        dropZone.style.color = "#4caf50";
+      });
+
+      // 📦 Wyjście kursora
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.style.borderColor = "#555";
+        dropZone.style.color = "#aaa";
+      });
+
+      // 📦 Upuszczenie pliku
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#555";
+        dropZone.style.color = "#aaa";
+
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+      });
+      // 📄 Główna funkcja obsługująca plik
+      function handleFile(file) {
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+          const text = event.target.result;
+          const lines = text.split("\n");
+
+          // 🧹 Wyczyść stare dane
+          blocks = [];
+
+          // 🔍 Parsowanie każdej linii
+          lines.forEach((line) => {
+            if (!line.includes("|")) return;
+
+            const cols = line.split("|").map((c) => c.trim());
+
+            const item = cols[1];
+            const total = parseInt(cols[2]);
+
+            // 🚫 Pomijamy nagłówek
+            if (item === "Item") return;
+
+            // ✅ Dodaj blok
+            if (item && !isNaN(total)) {
+              blocks.push({
+                name: item,
+                required: total,
+                collected: 0,
+              });
+            }
+          });
+
+          // 🎨 Odśwież UI
+          renderBlocks();
+
+          // 💾 Zapisz dane
+          saveData();
+        };
+
+        reader.readAsText(file);
       }
-
-      function addBlock() {
-        const name = document.getElementById("blockName").value.trim();
-        const required = parseInt(
-          document.getElementById("blockRequired").value,
-        );
-
-        if (!name || !required) return;
-
-        blocks.push({ name, required, collected: 0 });
-
-        document.getElementById("blockName").value = "";
-        document.getElementById("blockRequired").value = "";
-
-        renderBlocks();
-        saveData();
-      }
-
-      function addCollected(index) {
-        const input = document.getElementById(`add-${index}`);
-        let value = parseInt(input.value);
-
-        if (isNaN(value) || value <= 0) return;
-
-        blocks[index].collected += value;
-
-        if (blocks[index].collected > blocks[index].required) {
-          blocks[index].collected = blocks[index].required;
-        }
-
-        input.value = "";
-
-        renderBlocks();
-        saveData();
-      }
-
-      function deleteBlock(index) {
-        blocks.splice(index, 1);
-        renderBlocks();
-        saveData();
-      }
-
+      // 🎨 Generuje HTML na podstawie danych
       function renderBlocks() {
         const list = document.getElementById("blocksList");
         list.innerHTML = "";
@@ -202,24 +144,56 @@
           div.className = "block";
 
           div.innerHTML = `
-          <div><strong>${block.name}</strong></div>
+      <div><strong>${block.name}</strong></div>
+      <div>${block.required}</div>
+      <div>${block.collected}</div>
 
-          <div>${block.required}</div>
+      <!-- ➕ Dodawanie zebranych bloków -->
+      <input id="add-${index}" type="number" placeholder="Dodaj"
+        onkeydown="if(event.key==='Enter') addCollected(${index})">
 
-          <div>${block.collected}</div>
-
-          <input id="add-${index}" type="number" placeholder="Dodaj"
-            onkeydown="if(event.key==='Enter') addCollected(${index})">
-
-          <button class="delete-btn" onclick="deleteBlock(${index})">Usuń</button>
-        `;
+      <!-- ❌ Usuwanie bloku -->
+      <button class="delete-btn" onclick="deleteBlock(${index})">Usuń</button>
+    `;
 
           list.appendChild(div);
         });
 
         updateProgress();
       }
+      // ➕ Dodaje ilość do istniejącego bloku
+      function addCollected(index) {
+        const input = document.getElementById(`add-${index}`);
+        let value = parseInt(input.value);
 
+        if (isNaN(value) || value <= 0) return;
+
+        blocks[index].collected += value;
+
+        // 🚫 Nie przekraczaj maxa
+        if (blocks[index].collected > blocks[index].required) {
+          blocks[index].collected = blocks[index].required;
+        }
+
+        input.value = "";
+
+        renderBlocks();
+        saveData();
+      }
+      // ❌ Usuwa jeden blok z listy
+      function deleteBlock(index) {
+        blocks.splice(index, 1);
+
+        renderBlocks();
+        saveData();
+      }
+      // 💾 Zapis do localStorage
+      function saveData() {
+        localStorage.setItem("minecraftBlocks", JSON.stringify(blocks));
+
+        updateProgress();
+      }
+      // 📊 Aktualizacja paska postępu
       function updateProgress() {
         let totalRequired = 0;
         let totalCollected = 0;
@@ -237,113 +211,18 @@
         document.getElementById("progressText").textContent =
           percent + "% (" + totalCollected + " / " + totalRequired + ")";
       }
+      // 🗑️ Usuwa wszystkie bloki z potwierdzeniem
+      function clearAllBlocks() {
+        const confirmDelete = confirm(
+          "Czy na pewno chcesz usunąć WSZYSTKIE bloki?",
+        );
 
-      renderBlocks();
-      blocks = [];
-      const dropZone = document.getElementById("dropZone");
-      const fileInput = document.getElementById("fileInput");
-      dropZone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        handleFile(e.dataTransfer.files[0]);
-      });
-      dropZone.addEventListener("click", () => fileInput.click());
+        if (!confirmDelete) return; // ❌ użytkownik kliknął "Anuluj"
 
-      fileInput.addEventListener("change", (e) => {
-        handleFile(e.target.files[0]);
-      });
-
-      dropZone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = "#4caf50";
-        dropZone.style.color = "#4caf50";
-      });
-
-      dropZone.addEventListener("dragleave", () => {
-        dropZone.style.borderColor = "#555";
-        dropZone.style.color = "#aaa";
-      });
-
-      dropZone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = "#555";
-        dropZone.style.color = "#aaa";
-
-        const file = e.dataTransfer.files[0];
-        if (file) handleFile(file);
-      });
-
-      function handleFile(file) {
-        const reader = new FileReader();
-
-        reader.onload = function (event) {
-          const text = event.target.result;
-          const lines = text.split("\n");
-
-          // usuwa poprzednie dane
-          blocks = [];
-
-          lines.forEach((line) => {
-            if (!line.includes("|")) return;
-
-            const cols = line.split("|").map((c) => c.trim());
-
-            const item = cols[1];
-            const total = parseInt(cols[2]);
-
-            // pomija nagłówek tabeli
-            if (item === "Item") return;
-
-            if (item && !isNaN(total)) {
-              blocks.push({
-                name: item,
-                required: total,
-                collected: 0,
-              });
-            }
-          });
-
-          renderBlocks();
-          saveData();
-        };
-
-        reader.readAsText(file);
+        blocks = []; // 🧹 wyczyść tablicę
+        renderBlocks(); // 🎨 odśwież UI
+        saveData(); // 💾 zapisz zmiany
       }
-      document
-        .getElementById("fileInput")
-        .addEventListener("change", function (e) {
-          const file = e.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-
-          reader.onload = function (event) {
-            const text = event.target.result;
-            const lines = text.split("\n");
-
-            lines.forEach((line) => {
-              if (!line.includes("|")) return;
-
-              const cols = line.split("|").map((c) => c.trim());
-
-              const item = cols[1];
-              const total = parseInt(cols[2]);
-
-              if (item && !isNaN(total)) {
-                blocks.push({
-                  name: item,
-                  required: total,
-                  collected: 0,
-                });
-              }
-            });
-
-            renderBlocks();
-            saveData();
-          };
-
-          reader.readAsText(file);
-        });
     </script>
   </body>
 </html>
